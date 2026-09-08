@@ -1,0 +1,17 @@
+# 环境变量（含密钥，不入仓）
+.env
+
+# macOS
+.DS_Store
+
+# 运行时日志
+logs/
+
+# 渲染中间产物（发邮件时由 md 生成的 html，不入仓）
+assets/**/*.html
+
+# 运行时抓取/摘要中间产物
+data/
+data_arxiv.json
+data_rss.json
+data_github.json

@@ -1,0 +1,52 @@
+schema: spec-driven
+
+# Project context (shown to AI when creating artifacts)
+context: |
+  daily-surf 是一个个人科研/技术资讯自动化系统，运行在 macOS 上。
+
+  # 目标
+  - 每天 08:00 由定时任务触发，抓取当日新增的论文、GitHub 仓库、大厂博客、大佬动态，生成日报
+  - 每周一 08:00 额外生成周报（上一周四大板块聚合）
+  - 每天 09:00 把当日日报渲染成 HTML 通过 SMTP 发到 mail_list.json 里的所有邮箱；周一同时发周报
+  - 使用 openspec 管理所有流程规格，taste 沉淀在 .preference/，产出后按偏好反馈闭环更新
+
+  # 目录约定
+  - assets/daily/YYYYMMDD-daily-surf.md  每日日报
+  - assets/weekly/w{ISO周数}.md          每周周报
+  - .preference/papers.md                论文 taste（主题/作者/出版物）
+  - .preference/repos.md                 代码仓喜好
+  - .preference/blogs.md                 大厂文档/博客喜好
+  - .preference/people.md                大佬喜好
+  - .preference/feedback/                每次「喜欢/不喜欢 + 原因 + 改进方向」的沉淀记录
+  - scripts/                             调度 runner 与邮件脚本
+  - mail_list.json                       收件邮箱列表
+  - .env                                 SMTP 凭证与 CURSOR_API_KEY（不入仓）
+
+  # 技术栈
+  - 调度：macOS launchd（plist）
+  - 内容生成：Cursor SDK（cursor_sdk，Python），通过 CURSOR_API_KEY 调用 agent
+  - 邮件：SMTP（126 邮箱发件），Python smtplib
+  - 渲染：自研 markdown -> HTML 最简渲染（标题/粗体/链接/代码块/列表）
+
+  # 固定事实
+  - remote: https://github.com/yanboc/daily-surf
+  - 收件人：yanboch@126.com（发件人兼收件人）、chenyanbo10@huawei.com
+  - 发件人：yanboch@126.com
+
+# Per-artifact rules (optional)
+rules:
+  proposal:
+    - Keep proposals under 500 words
+  design:
+    - Keep design concise; prefer one mermaid diagram over prose when describing data flow
+  tasks:
+    - Break tasks into chunks that each finish in under 2 hours
+
+# Per-operation guidance (optional)
+operations:
+  apply:
+    guidance:
+      - 生成的资产文件写入 assets/ 后不要删除已有文件
+  archive:
+    guidance:
+      - 归档前确认规格已同步到 openspec/specs/
