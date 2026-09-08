@@ -13,10 +13,13 @@
 
 ## Authors（作者）
 
-- **Wenfeng Liang** —— ⚠️ 待确认：可能是笔误/占位，常见拼写应为 `Weifeng Liang` 或 `Wenfeng Liu`？请核实后修正。
-- （待补充：按喜好列出更多作者，并各附一句关注方向）
+- **梁文锋（Liang Wenfeng）** —— DeepSeek 创始人/负责人；关注其领导下的 DeepSeek 团队在训练/后训练/推理优化上的工作（deepseek 系列）。
+
+
 
 ## Publications（出版物）
+
+
 
 ### 会议（Conferences）
 
@@ -25,11 +28,16 @@
 3. ICLR
 4. ACL
 
+
+
 ### 期刊 / 预印本（Journals & Preprints）
 
 - arXiv（cs.CL / cs.MA / cs.AI / cs.LG 为主）
 - （待补充：TMLR、JMLR、Nature Machine Intelligence 等按实际喜好增补）
 
+
+
 ## 风格偏好（待补充）
 
 - （示例：偏好有消融实验、开源代码、可复现的论文；对纯 benchmark 刷分论文无感）
+

@@ -8,13 +8,24 @@ LOG_DIR="$REPO_ROOT/logs"
 
 mkdir -p "$LOG_DIR" "$REPO_ROOT/assets/daily" "$REPO_ROOT/assets/weekly"
 
-# 加载 .env
+# 加载 .env（兼容 `KEY=value`、`KEY = "value"` 等写法；去除空格与包裹引号）
 load_env() {
   if [ -f "$REPO_ROOT/.env" ]; then
-    set -a
-    # shellcheck disable=SC1091
-    source "$REPO_ROOT/.env"
-    set +a
+    eval "$(python3 - "$REPO_ROOT/.env" <<'PY'
+import sys
+path = sys.argv[1]
+for line in open(path, encoding="utf-8"):
+    line = line.strip()
+    if not line or line.startswith("#") or "=" not in line:
+        continue
+    k, _, v = line.partition("=")
+    k = k.strip()
+    v = v.strip()
+    if len(v) >= 2 and v[0] == v[-1] and v[0] in "\"'":
+        v = v[1:-1]
+    print("export %s=%s" % (k, repr(v)))
+PY
+)"
   fi
 }
 
@@ -28,13 +39,13 @@ today_weekday() {
   TZ=Asia/Shanghai date +%u
 }
 
-# 今天的 ISO 周数（取当前日），用于周报命名上一周用
+# 今天的 ISO 周数（取当前日）
 iso_week_of() {
   local d="$1" # YYYYMMDD
   python3 -c "import datetime,sys; d=datetime.date(int('${d}'[:4]),int('${d}'[4:6]),int('${d}'[6:8])); print(d.isocalendar()[1])"
 }
 
-# 上一周（周一到周日）所在的 ISO 周数——周一生成时用上周一计算
-prev_iso_week() {
-  TZ=Asia/Shanghai python3 -c "import datetime; d=datetime.datetime.now()+datetime.timedelta(days=-7); print(d.isocalendar()[1])"
+# 周报命名用「生成日所在 ISO 周数」（用户确认口径）
+weekly_week() {
+  iso_week_of "$1"
 }

@@ -30,8 +30,13 @@ def load_env() -> dict:
         line = line.strip()
         if not line or line.startswith("#") or "=" not in line:
             continue
-        k, v = line.split("=", 1)
-        env[k.strip()] = v.strip()
+        k, _, v = line.partition("=")
+        k = k.strip()
+        v = v.strip()
+        # 去掉成对包裹的引号
+        if len(v) >= 2 and v[0] == v[-1] and v[0] in "\"'":
+            v = v[1:-1]
+        env[k] = v
     return env
 
 
@@ -58,14 +63,15 @@ def main() -> int:
     env = load_env()
     recipients = load_recipients()
 
-    host = env.get("SMTP_HOST", "")
-    port = int(env.get("SMTP_PORT", "465"))
-    user = env.get("SMTP_USER", "")
-    password = env.get("SMTP_PASS", "")
-    sender = env.get("SMTP_FROM", user)
+    # 默认走 126 发件（发件人固定为 126 邮箱）；用户只需填 SMTP_PASS
+    sender = env.get("SMTP_FROM") or env.get("SMTP_USER") or "yanboch@126.com"
+    host = env.get("SMTP_HOST") or "smtp.126.com"
+    port = int(env.get("SMTP_PORT") or "465")
+    user = env.get("SMTP_USER") or sender
+    password = env.get("SMTP_PASS") or ""
 
     if not all([host, user, password]):
-        print("SMTP 配置不完整，请检查 .env", file=sys.stderr)
+        print("SMTP 配置不完整，请检查 .env（至少需要 SMTP_PASS）", file=sys.stderr)
         return 1
 
     # 渲染 html
