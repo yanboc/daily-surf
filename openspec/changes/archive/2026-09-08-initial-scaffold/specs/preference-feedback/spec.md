@@ -19,15 +19,15 @@
 - **THEN** 系统在 `.preference/feedback/` 下创建或更新一份记录，包含喜欢/不喜欢、原因、改进方向
 
 ### Requirement: 反馈回写 taste 文档
-系统 SHALL 在反馈指向用户口味变化时，同步更新 `.preference/` 下对应的 taste 文档（papers.md 记录主题/作者/出版物，repos.md 记录代码仓喜好，blogs.md 记录博客喜好，people.md 记录大佬喜好）。
+系统 SHALL 在反馈指向用户口味变化时，同步更新 `.preference/` 下对应的 taste 文档（papers.md 记录主题/作者/出版物，repos.md 记录代码仓喜好，blogs.md 记录博客喜好）。
 
 #### Scenario: 更新论文 taste
 - **WHEN** 用户反馈表达了对某主题/作者/出版物的喜好变化
 - **THEN** 系统更新 `.preference/papers.md` 对应部分
 
-#### Scenario: 更新代码仓/博客/大佬 taste
-- **WHEN** 用户反馈表达了对某代码仓、博客或大佬的喜好变化
-- **THEN** 系统更新 `.preference/` 对应的 repos.md / blogs.md / people.md
+#### Scenario: 更新代码仓/博客 taste
+- **WHEN** 用户反馈表达了对某代码仓或博客的喜好变化
+- **THEN** 系统更新 `.preference/` 对应的 repos.md / blogs.md
 
 ### Requirement: 不经允许不跳过闭环
 系统 SHALL 在每次产出后都执行反馈闭环，除非用户明确表示不更新。

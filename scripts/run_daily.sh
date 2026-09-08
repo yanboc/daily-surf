@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# 每天 08:00 由 launchd 触发：生成当日日报（4 路并行：arxiv/github/blogs/people）。
+# 每天 08:00 由 launchd 触发：生成当日日报（3 路并行：arxiv/github/blogs）。
 # 若为周一，额外生成周报（覆盖上一周）。
+# daily-surf 只关注精品长内容：论文、博客/工程文档、GitHub 仓库。
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -23,7 +24,7 @@ TMP_DIR="$REPO_ROOT/assets/daily/.tmp-${TODAY}"
 mkdir -p "$TMP_DIR"
 
 {
-  echo "[$(date '+%F %T')] ===== 日报流程开始（4 路并行）====="
+  echo "[$(date '+%F %T')] ===== 日报流程开始（3 路并行）====="
   echo "目标文件: $DEST"
 
   if [ -z "${CURSOR_API_KEY:-}" ]; then
@@ -33,7 +34,7 @@ mkdir -p "$TMP_DIR"
 
   TODAY_HUMAN="$(TZ=Asia/Shanghai date +%F)"
 
-  # 四个板块的 agent 并行启动，各自写中间 md 文件
+  # 三个板块的 agent 并行启动，各自写中间 md 文件
   # 板块 1: arxiv 论文
   "$AGENT_BIN" --print --trust -f \
     --api-key "$CURSOR_API_KEY" \
@@ -54,40 +55,26 @@ mkdir -p "$TMP_DIR"
   "$AGENT_BIN" --print --trust -f \
     --api-key "$CURSOR_API_KEY" \
     --model auto \
-    "你是 daily-surf 的大厂博客抓取 agent。请按 openspec/specs/daily-report/spec.md 规格，并参考 .preference/blogs.md。抓取今日（东八区 ${TODAY_HUMAN}）OpenAI、Anthropic、Google DeepMind、Meta AI、Mistral、xAI、Qwen、DeepSeek 等的最新技术博客 3-5 条，每条含标题、来源、链接、一句话看点。如果抓取不可用，如实写'本板块今日无新增（原因）'，不要编造。把结果 Markdown 直接写入文件 ${TMP_DIR}/03-blogs.md，只输出该板块内容（含 ## 三、大厂技术博客标题）。" \
+    "你是 daily-surf 的大厂博客抓取 agent。请按 openspec/specs/daily-report/spec.md 规格，并参考 .preference/blogs.md。抓取今日（东八区 ${TODAY_HUMAN}）OpenAI、Anthropic、Google DeepMind、Meta AI、Mistral、xAI、Qwen、DeepSeek 等的最新技术博客/工程文档 3-5 条，每条含标题、来源、链接、一句话看点。如果抓取不可用，如实写'本板块今日无新增（原因）'，不要编造。把结果 Markdown 直接写入文件 ${TMP_DIR}/03-blogs.md，只输出该板块内容（含 ## 三、大厂技术博客标题）。" \
     > "$TMP_DIR/03-blogs.log" 2>&1 &
   PID_BLOGS=$!
 
-  # 板块 4: 大佬动态
-  "$AGENT_BIN" --print --trust -f \
-    --api-key "$CURSOR_API_KEY" \
-    --model auto \
-    "你是 daily-surf 的大佬动态抓取 agent。请按 openspec/specs/daily-report/spec.md 规格，并参考 .preference/people.md。抓取今日（东八区 ${TODAY_HUMAN}）Andrej Karpathy、Yann LeCun、Geoffrey Hinton、李飞飞、Andrew Ng 等的动态/发言/博客 3-5 条，每条含人物、内容摘要、来源链接。如果抓取不可用，如实写'本板块今日无新增（原因）'，不要编造。把结果 Markdown 直接写入文件 ${TMP_DIR}/04-people.md，只输出该板块内容（含 ## 四、大佬动态标题）。" \
-    > "$TMP_DIR/04-people.log" 2>&1 &
-  PID_PEOPLE=$!
-
-  echo "已并行启动 4 个 agent（PIDs: ${PID_ARXIV} ${PID_GITHUB} ${PID_BLOGS} ${PID_PEOPLE}）"
+  echo "已并行启动 3 个 agent（PIDs: ${PID_ARXIV} ${PID_GITHUB} ${PID_BLOGS}）"
 
   # 等待全部完成
   FAIL=0
-  for pid in "$PID_ARXIV" "$PID_GITHUB" "$PID_BLOGS" "$PID_PEOPLE"; do
+  for pid in "$PID_ARXIV" "$PID_GITHUB" "$PID_BLOGS"; do
     if ! wait "$pid"; then
       echo "警告: agent $pid 异常退出"
       FAIL=1
     fi
   done
 
-  # 合并四个板块 + 概述/点评头尾
+  # 合并三个板块
   {
     echo "# 每日资讯 · $TODAY"
     echo ""
-    echo "> 生成日：东八区 ${TODAY_HUMAN}。数据口径见各板块；预印本已标注。"
-    echo ""
-    echo "## 概述"
-    echo ""
-    echo "面向偏好：LLM 后训练/对齐、Agentic AI、Agent Memory、Context Management；GitHub 侧重 AI/agent；博客优先 OpenAI/Anthropic/DeepMind/Meta AI/Mistral/xAI/Qwen/DeepSeek；大佬跟踪 Karpathy/LeCun/Hinton/李飞飞/Andrew Ng。"
-    echo ""
-    for sec in 01-arxiv 02-github 03-blogs 04-people; do
+    for sec in 01-arxiv 02-github 03-blogs; do
       if [ -s "$TMP_DIR/$sec.md" ]; then
         cat "$TMP_DIR/$sec.md"
       else
@@ -122,7 +109,7 @@ mkdir -p "$TMP_DIR"
     "$AGENT_BIN" --print --trust -f \
       --api-key "$CURSOR_API_KEY" \
       --model auto \
-      "你是 daily-surf 的资讯生成 agent。请按 openspec/specs/weekly-report/spec.md 规格、并参考 .preference/ 的 taste，聚合上一周（周一到周日）四大板块内容，写成结构化周报（含概述、四大板块、个人点评，每条附原文链接），直接写入文件 ${WDEST}。" \
+      "你是 daily-surf 的资讯生成 agent。请按 openspec/specs/weekly-report/spec.md 规格、并参考 .preference/ 的 taste，聚合上一周（周一到周日）论文、博客/工程文档、GitHub 仓库三大板块内容，写成结构化周报（含概述、三大板块、个人点评，每条附原文链接），直接写入文件 ${WDEST}。" \
       >> "$LOGFILE" 2>&1
     echo "周报已写入: $WDEST"
   fi

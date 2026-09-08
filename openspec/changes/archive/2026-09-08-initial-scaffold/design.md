@@ -17,9 +17,9 @@
 - 邮件：`com.daily-surf.mail`，每天 09:00
 - 周报：挂在日报 runner 内部判断「是否周一」，不额外建第三个 plist
 
-### 2. 内容生成：Cursor SDK（Python）
+### 2. 内容生成：cursor-agent CLI
 
-用 `cursor_sdk`（`Agent.prompt` 一次性调用）驱动 agent 按 `openspec/specs/` 与 `.preference/` 生成内容，替代手写抓取器。理由：抓取+筛选+点评本质是 agent 任务，SDK 是最直接的桥。
+用 `cursor-agent --print`（非交互、`CURSOR_API_KEY` 驱动）并行启动多个 agent，按 `openspec/specs/` 与 `.preference/` 生成内容，替代手写抓取器。理由：抓取+筛选+点评本质是 agent 任务，CLI 是最直接的桥，且支持多实例并行（每板块一个）。
 
 - 省流：需要 `CURSOR_API_KEY`（放 `.env`），runner 内显式读取
 - 备选：直接写 Python 抓取脚本（arxiv API / GitHub API / RSS），但点评与 taste 匹配成本高，暂不采用
@@ -33,12 +33,12 @@
 ### 4. 目录结构
 
 - `assets/daily/` 与 `assets/weekly/` 分层放置（原计划平铺 `assets/`），更清晰
-- `.preference/` 拆分为 papers/repos/blogs/people 四个 taste 文档 + `feedback/` 记录目录
+- `.preference/` 拆分为 papers/repos/blogs 三个 taste 文档 + `feedback/` 记录目录
 
 ## Risks / Trade-offs
 
 - [launchd 不加载或休眠跳过] → 在 runner 里写日志，plist 用 `RunAtLoad` false、`StandardErrorPath` 定位到日志文件
-- [Cursor SDK 未安装] → 需要在环境里 `pip install cursor-sdk`，并把安装步骤写进 runner 前检查
+- [agent 并行时被沙箱代理注入/工具被拒] → 脚本开头 unset 代理变量，agent 调用加 `-f`（force allow）
 - [126 SMTP 授权码未填] → `.env` 缺失时脚本报错并退出，不静默失败
 
 ## Migration Plan

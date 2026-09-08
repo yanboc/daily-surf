@@ -6,7 +6,7 @@
 ## 2. 文档与偏好
 
 - [ ] 2.1 重写 README.md 为纯索引
-- [ ] 2.2 修正 .preference/papers.md，新建 repos.md / blogs.md / people.md 与 feedback 模板
+- [ ] 2.2 修正 .preference/papers.md，新建 repos.md / blogs.md 与 feedback 模板
 
 ## 3. 邮件配置
 

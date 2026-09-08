@@ -24,5 +24,5 @@
 ## taste 文档更新
 
 - 是否更新 `.preference/`：是 / 否
-- 更新了哪些（papers / repos / blogs / people）：
+- 更新了哪些（papers / repos / blogs）：
 - 更新内容摘要：
