@@ -15,13 +15,12 @@ SUBJECT="daily-surf 日报 $(TZ=Asia/Shanghai date +%Y-%m-%d)"
 
 # 用 bash 数组收集要渲染/发送的 md 文件
 MD_FILES=("$REPORT")
-if [ "$(today_weekday)" = "1" ]; then
-  WK="$(weekly_week "$TODAY")"
-  WR="$REPO_ROOT/assets/weekly/w${WK}.md"
-  if [ -f "$WR" ]; then
-    SUBJECT="daily-surf 周报(w${WK}) + 日报 $(TZ=Asia/Shanghai date +%Y-%m-%d)"
-    MD_FILES+=("$WR")
-  fi
+# 本周周报若已生成则一并发送（周一自动生成；也覆盖手动补跑周报的场景）
+WK="$(weekly_week "$TODAY")"
+WR="$REPO_ROOT/assets/weekly/w${WK}.md"
+if [ -f "$WR" ]; then
+  SUBJECT="daily-surf 周报(w${WK}) + 日报 $(TZ=Asia/Shanghai date +%Y-%m-%d)"
+  MD_FILES+=("$WR")
 fi
 
 {
