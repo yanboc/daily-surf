@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""读取 .env 与 mail_list.json，用 SMTP 把指定 markdown 渲染成 HTML 后发送。
+"""读取 SMTP 配置（环境变量优先，.env 兜底）与 mail_list.json，用 SMTP 把指定 markdown 渲染成 HTML 后发送。
 
 用法:
   send_mail.py <subject> <path/to/report.md> [path/to/extra.md ...]
@@ -21,22 +21,24 @@ ROOT = Path(__file__).resolve().parent.parent
 
 
 def load_env() -> dict:
+    """环境变量优先，缺项再从仓库根 .env 兜底读取（CI 环境只靠环境变量）。"""
     env: dict = {}
     env_file = ROOT / ".env"
-    if not env_file.exists():
-        print("缺少 .env，请参照 .env.example 填写 SMTP 配置", file=sys.stderr)
-        sys.exit(1)
-    for line in env_file.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        k, _, v = line.partition("=")
-        k = k.strip()
-        v = v.strip()
-        # 去掉成对包裹的引号
-        if len(v) >= 2 and v[0] == v[-1] and v[0] in "\"'":
-            v = v[1:-1]
-        env[k] = v
+    if env_file.exists():
+        for line in env_file.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            k, _, v = line.partition("=")
+            k = k.strip()
+            v = v.strip()
+            # 去掉成对包裹的引号
+            if len(v) >= 2 and v[0] == v[-1] and v[0] in "\"'":
+                v = v[1:-1]
+            env[k] = v
+    for k in ("SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASS", "SMTP_FROM"):
+        if os.environ.get(k):
+            env[k] = os.environ[k]
     return env
 
 

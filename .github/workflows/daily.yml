@@ -1,0 +1,95 @@
+name: daily-surf
+
+# 云端定时运行：UTC 00:00 = 东八区 08:00 生成当日日报（周一含上周周报），
+# 提交回仓库后立即渲染发邮件、写飞书。本地 launchd 任务降为备选。
+on:
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+    inputs:
+      date:
+        description: '报告日期 YYYYMMDD（留空 = 东八区今天）'
+        required: false
+        default: ''
+      review:
+        description: '审阅模式（只生成待审稿与 artifact，不发布、不入库、不发邮件）'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily-surf
+  cancel-in-progress: false
+
+env:
+  TZ: Asia/Shanghai
+
+jobs:
+  daily:
+    runs-on: ubuntu-latest
+    env:
+      CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+      SMTP_HOST: ${{ secrets.SMTP_HOST }}
+      SMTP_PORT: ${{ secrets.SMTP_PORT }}
+      SMTP_USER: ${{ secrets.SMTP_USER }}
+      SMTP_PASS: ${{ secrets.SMTP_PASS }}
+      SMTP_FROM: ${{ secrets.SMTP_FROM }}
+      FEISHU_APP_ID: ${{ secrets.FEISHU_APP_ID }}
+      FEISHU_APP_SECRET: ${{ secrets.FEISHU_APP_SECRET }}
+      FEISHU_APP_TOKEN: ${{ secrets.FEISHU_APP_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 安装 cursor-agent CLI
+        run: |
+          curl https://cursor.com/install -fsS | bash
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          "$HOME/.local/bin/cursor-agent" --version
+
+      - name: 生成日报（周一含周报）
+        env:
+          INPUT_DATE: ${{ inputs.date }}
+          INPUT_REVIEW: ${{ inputs.review }}
+        run: |
+          ARGS=()
+          [ -n "$INPUT_DATE" ] && ARGS+=(--date "$INPUT_DATE")
+          [ "$INPUT_REVIEW" = "true" ] && ARGS+=(--review)
+          bash scripts/run_daily.sh "${ARGS[@]}"
+
+      - name: 提交日报/周报回仓库
+        if: ${{ inputs.review != true }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/daily assets/weekly
+          if git diff --cached --quiet; then
+            echo "无新增内容，跳过提交"
+          else
+            git commit -m "chore: 生成 $(TZ=Asia/Shanghai date +%Y%m%d) 日报/周报 [skip ci]"
+            git push
+          fi
+
+      - name: 发送邮件
+        if: ${{ inputs.review != true }}
+        run: |
+          if [ -z "${{ inputs.date }}" ]; then
+            bash scripts/send_mail.sh
+          else
+            DATE="${{ inputs.date }}"
+            [[ "$DATE" =~ ^[0-9]{8}$ ]] || { echo "错误: date 必须为 YYYYMMDD" >&2; exit 2; }
+            REPORT="assets/daily/${DATE}-daily-surf.md"
+            [ -s "$REPORT" ] || { echo "错误: 日报不存在: $REPORT" >&2; exit 1; }
+            python3 scripts/send_mail.py "daily-surf 补发日报 $DATE" "$REPORT"
+          fi
+
+      - name: 上传待审稿
+        if: ${{ always() && inputs.review == true }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: review-${{ inputs.date || 'today' }}
+          path: assets/review/
+          retention-days: 14

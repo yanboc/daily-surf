@@ -2,11 +2,18 @@
 # 公共函数：加载 .env、计算日期、判断周一
 set -euo pipefail
 
+# 全链路统一 UTF-8：脚本输出、日志、agent 读写、Python stdio 均为 UTF-8 编码。
+# C.UTF-8 在 macOS 与 Linux（含 GitHub Actions runner）均可用。
+export LC_ALL="${LC_ALL:-C.UTF-8}"
+export LANG="${LANG:-C.UTF-8}"
+export PYTHONIOENCODING="utf-8"
+
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-AGENT_BIN="/Users/apple/.local/bin/cursor-agent"
+# AGENT_BIN 可被环境覆盖；默认优先 PATH 中的 cursor-agent（CI），回退本机安装路径。
+AGENT_BIN="${AGENT_BIN:-$(command -v cursor-agent || echo /Users/apple/.local/bin/cursor-agent)}"
 LOG_DIR="$REPO_ROOT/logs"
 
-mkdir -p "$LOG_DIR" "$REPO_ROOT/assets/daily" "$REPO_ROOT/assets/weekly"
+mkdir -p "$LOG_DIR" "$REPO_ROOT/assets/daily" "$REPO_ROOT/assets/weekly" "$REPO_ROOT/assets/review"
 
 # 加载 .env（兼容 `KEY=value`、`KEY = "value"` 等写法；去除空格与包裹引号）
 load_env() {
@@ -39,6 +46,12 @@ today_weekday() {
   TZ=Asia/Shanghai date +%u
 }
 
+# 指定日期的 weekday(1=周一 .. 7=周日)
+weekday_of() {
+  local d="$1"
+  python3 -c "import datetime; d=datetime.datetime.strptime('${d}', '%Y%m%d').date(); print(d.isoweekday())"
+}
+
 # 今天的 ISO 周数（取当前日）
 iso_week_of() {
   local d="$1" # YYYYMMDD
@@ -48,4 +61,16 @@ iso_week_of() {
 # 周报命名用「生成日所在 ISO 周数」（用户确认口径）
 weekly_week() {
   iso_week_of "$1"
+}
+
+# 基准日期 N 天前，均为 YYYYMMDD；基准日期默认东八区今天。
+days_before_yyyymmdd() {
+  local base="${1:-$(today_yyyymmdd)}"
+  local n="${2:-2}"
+  python3 -c "import datetime; d=datetime.datetime.strptime('${base}', '%Y%m%d').date(); print((d-datetime.timedelta(days=int('${n}'))).strftime('%Y%m%d'))"
+}
+
+human_date() {
+  local d="$1"
+  python3 -c "import datetime; print(datetime.datetime.strptime('${d}', '%Y%m%d').date().isoformat())"
 }
