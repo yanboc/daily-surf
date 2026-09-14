@@ -10,8 +10,17 @@ logs/
 # 渲染中间产物（发邮件时由 md 生成的 html，不入仓）
 assets/**/*.html
 
+# 待审稿：确认后由 publish_review.sh 提升到正式目录
+assets/review/
+
 # 运行时抓取/摘要中间产物
 data/
 data_arxiv.json
 data_rss.json
 data_github.json
+
+# 日报解析中间产物（parse_to_db.py 生成，入库后即弃）
+assets/daily/.tmp-*/db.json
+
+# Python 缓存
+__pycache__/

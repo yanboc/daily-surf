@@ -48,4 +48,4 @@ scripts/publish_review.sh 20260912                 # 仅提升为正式日报
 scripts/publish_review.sh 20260912 --feishu --mail # 明确入库并补发
 ```
 
-审阅模式不会覆盖正式日报、写飞书或发送邮件。正式调度由专用 `DailySurfRunner.app` 启动；先运行 `scripts/install_runner_app.sh`，在 macOS“完全磁盘访问”中授权该 App，再用 `scripts/install_schedule.sh install` 安装为禁用状态，审阅通过后执行 `enable`。
+审阅模式不会覆盖正式日报、写飞书或发送邮件。正式调度以 GitHub Actions 为准（见上节）；本地 launchd 已禁用。如需恢复本地调度：先运行 `scripts/install_runner_app.sh`，在 macOS“完全磁盘访问”中授权该 App，再用 `scripts/install_schedule.sh install` 安装，审阅通过后执行 `enable`。
