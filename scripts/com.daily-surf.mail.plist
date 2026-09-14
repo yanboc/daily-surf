@@ -6,8 +6,8 @@
     <string>com.daily-surf.mail</string>
     <key>ProgramArguments</key>
     <array>
-        <string>/bin/bash</string>
-        <string>/Users/apple/Documents/projects/daily-surf/scripts/send_mail.sh</string>
+        <string>/Users/apple/Applications/DailySurfRunner.app/Contents/MacOS/DailySurfRunner</string>
+        <string>mail</string>
     </array>
     <key>StartCalendarInterval</key>
     <dict>

@@ -6,8 +6,8 @@
     <string>com.daily-surf.daily</string>
     <key>ProgramArguments</key>
     <array>
-        <string>/bin/bash</string>
-        <string>/Users/apple/Documents/projects/daily-surf/scripts/run_daily.sh</string>
+        <string>/Users/apple/Applications/DailySurfRunner.app/Contents/MacOS/DailySurfRunner</string>
+        <string>daily</string>
     </array>
     <key>StartCalendarInterval</key>
     <dict>
