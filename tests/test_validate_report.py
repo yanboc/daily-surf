@@ -45,6 +45,18 @@ class ValidateReportTests(unittest.TestCase):
         )
         self.assertEqual(validator.validate(text), [])
 
+    def test_tier_format_variants_pass(self):
+        bold = item(1).replace("分级：A", "分级：**A**")
+        bare = item(2).replace("；分级：A", "；S")
+        text = "# 每日资讯\n\n" + "\n".join(
+            [
+                "## 一、论文（arxiv）\n" + bold + bare,
+                "## 二、GitHub 仓库\n" + item(1) + item(2),
+                "## 三、博客 / 工程文档\n" + item(1) + item(2),
+            ]
+        )
+        self.assertEqual(validator.validate(text), [])
+
 
 if __name__ == "__main__":
     unittest.main()

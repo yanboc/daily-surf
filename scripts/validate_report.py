@@ -28,7 +28,12 @@ def validate(text: str) -> list[str]:
         # 日期只做正则匹配（如 2026-09-10 / 2026/09/10 / 2026年9月），不强制「日期」字样
         if not re.search(r"20\d\d\s*[-/.年]\s*\d{1,2}", block):
             errors.append(f"第 {index + 1} 条元信息缺少日期")
-        if not re.search(r"(?:分级|【)[：:]?\s*[SAB]", block):
+        # 分级容忍加粗与不同写法：分级：S / 分级：**S** / 【S / 元信息行尾「；S」
+        clean = block.replace("**", "")
+        has_tier = re.search(r"(?:分级|【)[：:]?\s*[SAB](?![A-Za-z])", clean) or re.search(
+            r"(?m)[；;]\s*[SAB]\s*$", clean
+        )
+        if not has_tier:
             errors.append(f"第 {index + 1} 条缺少 S/A/B 分级")
     return errors
 
