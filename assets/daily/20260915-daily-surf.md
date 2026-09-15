@@ -5,8 +5,8 @@
 1. **[AIM: A Privacy-Aware Interoperable Memory Framework for Multi-Agent Multi-User LLM Systems](https://arxiv.org/abs/2609.12320)**
    - 元信息：2026-09-14（arxiv 公告日；submitted 2026-09-11）；预印本；主题标签：Agent Memory / 多 Agent 多用户共享记忆 / 隐私可见性控制 / CRUD 记忆生命周期；分级：S
    - 核心问题：多 Agent、多用户企业场景需要持久私有记忆与可共享公共知识，但现有 agent 记忆多停留在单用户，缺少 index 级访问控制与 create/read/update/delete 统一生命周期，导致协调不足与隐私泄露风险。
-   - 机制/设计：AIM 拆成写路径与读路径，共享同一带可见性谓词 \(\mathcal{V}\) 的记忆库——private 仅 owner 可读，public 全员可读；update/delete 另要求创建者所有权。写路径：多标签意图检测（单轮可同时 c/r/u/d）→ 结构化抽取（内容/标签/元数据）→ LLM 可见性分类 → 按可见性范围的 in-context 语义去重（create/update/no-op）。读路径三级级联：可见性约束稠密检索（HNSW）→ tag 重打分 → LLM 重排并融合时间戳。定位为跨厂商可挂的系统无关记忆服务。
-   - 证据：自建 MUMBench（GPT-4o 合成、人工校验；Coding/Customer Support/Education/Travel 四域共 672 交互，含对抗查询与共享记忆）。主模型含 GPT-5.4 / mini、DeepSeek-V3.2、Mistral-Large-3、Llama-3.3-70B；每交互 3 次独立跑。最佳主模型 GPT-5.4-mini：可见性分类 96.0%、strict 操作准确率 58.8%、state-aware 70.5%、内容质量约 91.6%；judge-decision 约 89.5%。作者明确指出 early miss（如漏 create）会使下游 update/delete 在 strict 下连锁失败，state-aware/judge 才按实际状态纠偏。
+   - 机制/设计：AIM 拆成写路径与读路径，共享同一带可见性谓词 \(\mathcal{V}\) 的记忆库——private 仅 owner 可读，public 全员可读；update/delete 另要求创建者所有权。写路径：多标签意图检测（单轮可同时 c/r/u/d）→ 结构化抽取（内容/标签/元数据）→ LLM 可见性分类 → 按可见性范围的 in-context 语义去重（create/update/no-op）。读路径三级级联：可见性约束稠密检索（HNSW，embedding `text-embedding-3-large`）→ tag 重打分 → LLM 重排并融合时间戳。定位为跨厂商可挂的系统无关记忆服务。
+   - 证据：自建 MUMBench（GPT-4o 合成、人工校验；Coding/Customer Support/Education/Travel 四域共 672 交互、93 用户，含对抗查询与共享记忆）。主模型含 GPT-5.4 / mini、DeepSeek-V3.2、Mistral-Large-3、Llama-3.3-70B；每交互 3 次独立跑。GPT-5.4-mini：strict 操作准确率 58.8%、state-aware 70.5%、内容质量约 91.6%、judge-decision 约 89.5%；可见性分类最优为 GPT-5.4 的 96.0%（mini 约 95.0%）。作者明确指出 early miss（如漏 create）会使下游 update/delete 在 strict 下连锁失败，state-aware/judge 才按实际状态纠偏。
    - 局限：tag overlap 最高仅约 35.5%，检索相关性峰值约 45.0%；LOCOMO 对照为单次、且是单用户基准，测不到多用户隐私与跨 Agent 同步这些差异化能力；任意用户可写入/改写全局 public 记忆，缺乏事实校验与按群组收窄的 public 作用域。
    - 对办公 Agent 或 Agent 基础设施的意义：直接对应「多人协作助手」的租户隔离与共享知识库——把私有偏好/日程与团队公告拆开存进同一索引，并在检索侧做权限下推；办公落地应优先抄可见性谓词与所有权写保护，同时补强检索与公共记忆的事实/范围治理，否则会把错误公告广播给全组织。
 
@@ -14,43 +14,43 @@
    - 元信息：2026-09-14（arxiv 公告日；submitted 2026-09-11）；预印本；主题标签：Agent Memory / Context Engineering / cue→anchor→context 重构 / 长对话 QA；分级：S
    - 核心问题：长对话办公助手若塞满历史则贵且易丢关键证据，若只检索压缩记忆单元又常因混合语义丢掉细粒度线索；需要把「存什么」和「答时用什么上下文」解耦。
    - 机制/设计：离线用 LLM 从各 turn 抽关系三元组作原子 cue，并保留指向源 turn 的指针；turn 图含时间窗边与基于 cue 近邻的语义边。在线：query 检索 top-m cue → 映射为源 turn 锚点 → 沿图一跳扩展重构证据上下文 → 交给 LLM 作答。维护刻意轻量：ADD 近实时插 cue/节点；DELETE 可用时间衰减/LRU；不做专门 UPDATE，新事实写成新 cue，生成时用「优先更近证据」指令消解冲突。
-   - 证据：统一骨架 Llama-3.3-70B-Instruct + all-MiniLM-L6-v2。LoCoMo（10 会话 / 1540 题）Overall 81.10%，相对最强基线 MemoryOS 75.84% 提升 5.26%；单跳 84.07%、时间 82.24%。LongMemEval-S（500 题）Overall 75.20%，相对 LightMem 73.60% 提升 1.60%；知识更新题 87.18%（无显式 UPDATE）。消融：去掉 turn 图 Overall 81.1%→71.4%；去掉优先级指令 Overall 75.2%→72.4%，知识更新 87.2%→80.8%。相对 full-history：LoCoMo 约 2K vs ~21K tokens、延迟降约 42.5%；LongMemEval 约 2K vs ~108K、准确率 70.00% vs 42.80%、延迟降约 87.4%。
-   - 局限：开放域题弱于 MemoryOS（68.75% vs 77.08%），因主要只重构对话内证据、缺外部知识检索/高层抽象；依赖 LLM 在冲突上下文中按指令择新，未见独立 Limitations 节，也未系统报告 cue 抽取错误或图扩展引入噪声时的失败边界。
+   - 证据：统一骨架 Llama-3.3-70B-Instruct + all-MiniLM-L6-v2。LoCoMo（10 会话 / 1540 题）Overall 81.10%，相对最强基线 MemoryOS 75.84% 提升 5.26%；单跳 84.07%、时间 82.24%、多跳 75.18%。LongMemEval-S（500 题）Overall 75.20%，相对 LightMem 73.60% 提升 1.60%；知识更新题 87.18%（无显式 UPDATE）。消融：去掉 turn 图 Overall 81.1%→71.4%；去掉优先级指令 Overall 75.2%→72.4%，知识更新 87.2%→80.8%。相对 full-history：LoCoMo 约 2K vs ~21K tokens、延迟降约 42.5%；LongMemEval 约 2K vs ~108K、准确率 70.00% vs 42.80%、延迟降约 87.4%。
+   - 局限：开放域题弱于 MemoryOS（68.75% vs 77.08%），因主要只重构对话内证据、缺外部知识检索/高层抽象；无独立 Limitations 节，也未系统报告 cue 抽取错误或图扩展引入噪声时的失败边界。
    - 对办公 Agent 或 Agent 基础设施的意义：给出可落地的上下文工程范式——记忆条目当检索线索，真证据回源对话片段再组装进窗口；适合邮件/会议长线程助手在控 token 的同时保可审计原文，并暗示许多「记忆 UPDATE」可降级为「新写入 + 回答时近因优先」，但开放域与外部系统事实仍需另接检索。
 
-3. **[LifeFuse-Mem: Lifecycle-Aware State Fusion Against Temporary Overwriting for Long-Term Memory](https://arxiv.org/abs/2609.12436)**
-   - 元信息：2026-09-14（arxiv 公告日；submitted 2026-09-11）；预印本；主题标签：Agent Memory / 生命周期路由 / 临时覆盖失败模式 / 紧凑在线神经记忆；分级：A
-   - 核心问题：持久 Agent 的紧凑在线记忆若把「应跨会话保留的事实」与「仅当前上下文有效的临时假设」写进同一状态，临时写入会覆盖稳定知识，造成行为漂移。
-   - 机制/设计：在 δ-Mem 式 rank-8 关联状态上学习正交基，将坐标划为 plastic/stable 子空间（各 4 维）；用剧集元数据监督的 permanent router \(\rho_t\) 缩放 stable 行的擦写强度，并对 stable key 做隔离衰减。训练目标为写后禁写再读的 CE，加上 route/orth/hard-candidate/retention-ranking/稀疏写门。受控抗覆盖评测中，对 permanent 查询融合 Phase-A 状态与「plastic 取覆盖后、stable 恢复 Phase-A」的保护态（\(\alpha=0.7\)）；temporary 查询只用覆盖后全状态。公开基准无生命周期标注时，关闭保护融合，仅保留路由与子空间。
-   - 证据：骨干 Qwen3-4B / SmolLM3-3B；自建 Hard Attribution Anti-Overwrite（1000 剧集：Phase-A 永久事实 → Phase-B 冲突临时写入）。相对 δ-Mem，acquisition-controlled Ret.：Qwen 57.72%→63.71%、SmolLM 60.27%→69.39%；Ovr. 同步下降（42.28%→36.29%、39.73%→30.61%）。端到端 Permanent 准确率几乎不动（约 19–20%）。LoCoMo / MemoryAgentBench 上整体可竞争（如 Qwen LoCoMo 41.24%→42.41%），但 LRU/SF 等子项有小幅回退。消融显示去掉 route supervision 对 Ret. 伤害最大。
-   - 局限：保护态融合依赖已知 Phase 边界与查询生命周期，不是自主生命周期发现；作者承认主要改善「已习得事实的抗覆盖」，不显著提高端到端答对率；训练需要 lifecycle 标签；无独立 Limitations 节，未标注历史下的生命周期推断留待未来。
-   - 对办公 Agent 或 Agent 基础设施的意义：把办公里常见的「临时假设/草稿」与「制度性偏好/已确认事实」写成记忆生命周期问题；工程上即使不用神经子空间，也应在写入策略与读出视图上区分 durable vs ephemeral，并警惕：只优化抗覆盖诊断指标、不抬端到端任务成功率时，生产价值有限。
+3. **[Pull: Lazy Materialization of Working Memory for Stateful LLM Conversations](https://arxiv.org/abs/2609.14773)**
+   - 元信息：2026-09-15（arxiv 公告日；submitted 2026-09-13）；预印本；主题标签：Context Engineering / 会话内 Working Memory / 惰性物化 / 确定性元数据路由；分级：A
+   - 核心问题：长会话 Agent 若每轮重传全历史，成本随轮次平方膨胀且信噪比低；压缩型记忆又不可逆，后续查询无法再展开。需要会话内「第二层」工作记忆：在线零 LLM 标注、查询时按需物化原文。
+   - 机制/设计：两阶段解耦——Purifier 每轮用规则/MiniLM 写 M0 目录摘要与 M10 轨迹（实体、生命周期 def/ref/mod/dep、密度、分支），零 LLM；查询时 Selector 读 M10 选出 turn 集，再确定性 cascade（补最早定义 turn，预算 ≤+5）；Answerer 读全量 M0 + 选中原文作答。三级存储：活跃区（0–300 turn 原文）、冻结区（300–800 block summary）、外部归档；淘汰按 fidelity/引用/长度/近因加权。
+   - 证据：LoCoEval（128 样本、71 仓、约 100 turn）单跳 F1 0.6676 vs Vanilla 0.6694（TOST ±0.05 等价），Phase-2 token 省 75.1%；多跳 F1 0.6500、省 72.0%。消融：去 M0 单跳掉 0.059；cascade 在多跳贡献约 +0.013。BEAM 1M（14 会话 / 263 题，用简化 Purifier）F1 0.464 vs 截断 0.299（+55.2%），token 约 64.5K vs 163K。受控路由基准 7831 探针：M10 Recall@10 96.0%，相对 RAG-BM25 55.3% 的增益主要来自生命周期字段（+21.9）。生产编码助手 13 个 SWE-bench Pro 实例 350+ 工具轮零崩溃。
+   - 局限：实体抽取与路由基准偏代码域，低实体密度办公对话未验证；主实验生成与评判同用 GLM-5（虽有 Qwen 交叉法官，仍有 22/64 样本方向翻转）；BEAM 仅 14/35 会话且简化 Purifier；部署无 A/B，绝对省 token 量有限；开篇经验来自单用户开发日志。
+   - 对办公 Agent 或 Agent 基础设施的意义：把「跨会话长期记忆」与「会话内工作记忆」分层——Pull 适合作为长邮件线程/多工具改稿会话的上下文管理器（确定性元数据 + 可逆物化），再把淘汰内容交给 Mem0 类长期库；办公落地需先换实体抽取适配器（人名/单据/日程），不能直接套代码正则。
 
 ## 二、GitHub 仓库
 
 1. **[iOfficeAI/OfficeCLI](https://github.com/iOfficeAI/OfficeCLI)**
-   - 元信息：2026-09-14；已发布（v1.0.150）；主题标签：办公 Agent / 文档表格演示文稿 / 渲染闭环 / 可靠性；分级：S
-   - 核心问题：办公 Agent 要稳定读写 `.docx` / `.xlsx` / `.pptx`，却常被「无 Office 环境、只能摸 XML DOM、失败写脏盘、批量改半截」卡住；需要把文档操作做成可脚本化、可自检、可回滚的工具面。
-   - 机制/设计：单二进制嵌入 .NET 运行时，不依赖本机 Office。能力分三层——L1 `view`（text/outline/issues/html/screenshot）、L2 路径寻址 DOM（`get`/`query`/`set`/`add`/`move`…）、L3 `raw`/`raw-set`；内置 HTML 渲染与公式/透视引擎，支持 resident（`open`/`close`）、默认原子 `batch`、模板 `merge` 与 `dump`→`batch` 回放。Agent 侧用 `SKILL.md` + `officecli mcp` 接入；失败路径统一结构化错误码，便于自愈。
-   - 证据：README「Three-Layer Architecture / Resident Mode & Batch / MCP Server」；`SKILL.md` 明确 L1→L2→L3 与 resident flush 边界；[v1.0.150](https://github.com/iOfficeAI/OfficeCLI/releases/tag/v1.0.150)（2026-09-14）及同日提交 [ecbcef7](https://github.com/iOfficeAI/OfficeCLI/commit/ecbcef7) 把 Word/PPT 变更打点改走 `MarkModified`，拒绝的 add/set/remove/raw-set 不写 `OfficeCLI.Version`/`LastModified` 审计戳、成功的 move/swap/copy 才盖戳（`WordHandler.cs` 内 helper）；另有 shared-formula 展开、selector 校验等 xlsx/query 修复。
-   - 局限：聚焦本地 OOXML 文件，不覆盖邮件/日历/Teams 等在线办公图；高保真 `screenshot` 仍依赖无头浏览器链路；复杂版式/插件格式仍可能落到 L3 手工 XML；宣称「世界第一」属营销口径，需以兼容性实测为准。
-   - 对办公 Agent 或 Agent 基础设施的意义：把「写报告/改表/做 PPT」从脆弱库拼装提升为可观测、可批量回滚的文档 runtime，是办公 Agent 工具链里最贴近生产的文档执行层之一。
+   - 元信息：2026-09-14；已发布（[v1.0.150](https://github.com/iOfficeAI/OfficeCLI/releases/tag/v1.0.150)）；主题标签：办公 Agent / 文档表格演示文稿 / 渲染自检闭环 / 原子 batch / 变更审计戳；分级：S
+   - 核心问题：办公 Agent 要稳定读写 `.docx` / `.xlsx` / `.pptx`，却常卡在「无本机 Office、只能摸 XML、失败仍写脏盘、批量改半截」；需要把文档操作做成可脚本化、可自检、失败不留审计假阳性的工具面。
+   - 机制/设计：单二进制嵌入运行时，不依赖本机 Office。能力分三层——L1 `view`（text/outline/issues/html/screenshot 等语义视图）、L2 路径寻址 DOM（`get`/`query`/`set`/`add`/`move`…）、L3 `raw`/`raw-set`；`open`/`close` resident + 默认原子 `batch`（失败整批回滚，可用 `--best-effort`）。Agent 侧用 `SKILL.md`（明确 L1→L2→L3）与 `officecli mcp` 接入。窗口内关键修复把 Word/PPT 变更打点统一走 `MarkModified`：拒绝的 add/set/remove/raw-set 恢复 `Modified` 标志、不写 `OfficeCLI.Version`/`LastModified`；成功的 move/swap/copy 才盖戳。
+   - 证据：README「Three-Layer Architecture / Resident Mode & Batch / MCP Server」；[`SKILL.md`](https://raw.githubusercontent.com/iOfficeAI/OfficeCLI/main/SKILL.md) Strategy 与 Resident flush 边界；[v1.0.150](https://github.com/iOfficeAI/OfficeCLI/releases/tag/v1.0.150)（2026-09-14）及同日提交 [ecbcef7](https://github.com/iOfficeAI/OfficeCLI/commit/ecbcef7)（`PowerPointHandler.cs` / `WordHandler` 侧 `MarkModified` helper，commit message 明确「refused mutation is not stamped」）；同窗还有 shared-formula 展开、invalid_selector、xlsx 拒绝写后字节不变等修复。
+   - 局限：聚焦本地 OOXML，不覆盖邮件/日历/Teams 等在线图；高保真 `screenshot` 依赖无头浏览器链路；复杂版式仍可能落到 L3；README「world's first/best」属营销口径，需以兼容性实测为准。
+   - 对办公 Agent 或 Agent 基础设施的意义：把「写报告/改表/做 PPT」提升为可观测、可批量回滚、失败不伪造审计戳的文档 runtime，是办公 Agent 工具链里最贴近生产的本地文档执行层之一。
 
 2. **[triggerdotdev/trigger.dev](https://github.com/triggerdotdev/trigger.dev)**
-   - 元信息：2026-09-14；已发布（v4.6.0）；主题标签：Agent harness / 会话持久化 / 可靠性 / 人机审批续跑；分级：A
-   - 核心问题：长对话 Agent 跑在可挂起/可崩溃的 worker 上时，线协议只传增量消息，重启后如何重建完整 transcript、保留 undo/edit、并在权限收紧下不丢未应答用户输入。
-   - 机制/设计：`chat.agent` 以 snapshot + `session.out`/`session.in` 尾部 replay 恢复历史；默认对象存储 `sessions/{id}/snapshot.json`（await 写入），也可注入自有 `TranscriptStorage`（`load`/`save`，增量 + 全量双形态）。`run` 收到托管 `streamText`（强制合并 steering/compaction/tools）；`onAction` 经 `chat.turn()` 驱动真正一轮；`chat.close()` 终止会话；公开 token 对 `.in` 读改为需 secret key；undo/edit/regenerate 在 action 路径单独落盘，避免 run 结束后回滚丢失。
-   - 证据：[v4.6.0 changelog](https://trigger.dev/changelog/v4-6-0)（2026-09-14）与 [release 标签](https://github.com/triggerdotdev/trigger.dev/releases/tag/v4.6.0)；官方文档 [Persistence and replay](https://trigger.dev/docs/ai-chat/patterns/persistence-and-replay)、[Lifecycle hooks](https://trigger.dev/docs/ai-chat/lifecycle-hooks)（含 HITL 续跑/`addToolApproveResponse` 语义）；当日 commit 如 `fix(dashboard-agent): persist the conversation through the chat.agent transcript storage`、`fix(sdk): keep chat.history edits made in onTurnComplete after a failed turn`。
-   - 局限：无对象存储且无自定义 storage 时续聊会空启动；自建 storage/`hydrateMessages`（已弃用）若写错会直接污染模型上下文；Zod 4 默认与 `.in` 鉴权变更是破坏性升级；产品偏通用 durable workflow，不内置 Office/邮件语义工具。
-   - 对办公 Agent 或 Agent 基础设施的意义：为「跨轮办公助手」（起草→审批→改稿）提供可审计的会话所有权与崩溃恢复原语，把人机审批续跑做成 runtime 契约而非应用层补丁。
+   - 元信息：2026-09-14；已发布（[v4.6.0](https://github.com/triggerdotdev/trigger.dev/releases/tag/v4.6.0)）；主题标签：Agent harness / 会话持久化与 replay / 人机审批续跑 / 可靠性；分级：A
+   - 核心问题：长对话 Agent 跑在可挂起/可崩溃的 worker 上时，线协议只传增量消息；重启后如何重建完整 transcript、让 undo/edit 与工具审批续跑不丢，并在权限收紧下保护未应答输入。
+   - 机制/设计：`chat.agent` 以 snapshot + `session.out`/`session.in` 尾部 replay 恢复历史；默认对象存储 `sessions/{id}/snapshot.json`（await 写入），也可注入自有 `TranscriptStorage`（`load`/`save`，增量 + 全量双形态）。`run` 收到托管 `streamText`（强制合并 steering/compaction/tools）；`onAction` 经 `chat.turn()` 驱动真正一轮；`chat.close()` 终止会话。公开 token 对 `.in` 读改为需 secret key；HITL（`addToolOutput` / `addToolApproveResponse`）在 hydrate 路径上把审批态叠到既有 assistant 条目。undo/edit/regenerate 在 action 路径单独落盘，避免 run 结束后回滚丢失。
+   - 证据：[v4.6.0 changelog](https://trigger.dev/changelog/v4-6-0)（2026-09-14）；官方文档 [Persistence and replay](https://trigger.dev/docs/ai-chat/patterns/persistence-and-replay)、[Lifecycle hooks](https://trigger.dev/docs/ai-chat/lifecycle-hooks)（含 HITL 续跑/`addToolApproveResponse` 与 `upsertIncomingMessage` 语义）；当日 commit 如 `feat(dashboard-agent): persist the conversation through the chat.agent transcript storage`、`fix(sdk): keep chat.history edits made in onTurnComplete after a failed turn`。
+   - 局限：无对象存储且无自定义 storage 时续聊会空启动；自建 storage/`hydrateMessages`（已弃用）写错会直接污染模型上下文；Zod 4 默认与 `.in` 鉴权是破坏性升级；产品偏通用 durable workflow，不内置 Office/邮件语义工具。
+   - 对办公 Agent 或 Agent 基础设施的意义：为「起草→审批→改稿」跨轮办公助手提供可审计的会话所有权与崩溃恢复原语，把人机审批续跑做成 runtime 契约而非应用层补丁。
 
-3. **[microsoft/agent-framework](https://github.com/microsoft/agent-framework)**
-   - 元信息：2026-09-13–2026-09-14；已发布（开源框架，窗口内持续合并）；主题标签：多 Agent 编排 / 人机审批 / 可观测性 / 工具流可靠性；分级：A
-   - 核心问题：生产 Agent 需要统一的工具审批、中间件、OpenTelemetry 与多 Agent 工作流；并行工具调用在流式聚合时若按「最后一项」合并，会静默错配参数，导致错误执行或难诊的 JSON 解析失败。
-   - 机制/设计：Python/.NET 同构的 agent + graph workflow（sequential/concurrent/handoff/group），内建 checkpoint、HITL、中间件与 OTel。工具可用 `@tool(approval_mode="always_require")`，运行时暴露 `user_input_requests`，由调用方回写 `to_function_approval_response`。窗口内关键修复：流式 `function_call` 增量按 `call_id` 归并到对应进行中调用（无 id 时才回退尾项），避免并行工具参数交织；另有 AG-UI resume 去重 transcript、middleware 修复函数参数、Secure MCP URL header 按 origin 收紧等。
-   - 证据：仓库 README（orchestration / observability / human-in-the-loop）；样例 [`function_tool_with_approval.py`](https://raw.githubusercontent.com/microsoft/agent-framework/main/python/samples/02-agents/tools/function_tool_with_approval.py)；合并 PR [#8337](https://github.com/microsoft/agent-framework/pull/8337)（2026-09-14，`agent_framework/_types.py` 按 `call_id` 聚合）；同窗 [#8149](https://github.com/microsoft/agent-framework/pull/8149) transcript resume、[#8288](https://github.com/microsoft/agent-framework/pull/8288) middleware 参数修复；设计文档指向 [ADR / Learn middleware](https://learn.microsoft.com/en-us/agent-framework/user-guide/agents/agent-middleware)。
-   - 局限：窗口内多为可靠性与治理修补，非全新办公垂直能力；HITL 仍需应用层循环处理审批 UI；并行无 `call_id` 的旧 Chat Completions 路径无法完全消歧；对接第三方 MCP/模型的数据出境与合规需自担。
-   - 对办公 Agent 或 Agent 基础设施的意义：把「发邮件前审批、并行查日历/文档」所需的权限闸门与流式工具正确性沉到框架层，是办公 Agent 接入企业系统时的通用控制面与执行正确性底座。
+3. **[temporal-community/temporal-agent-harness](https://github.com/temporal-community/temporal-agent-harness)**
+   - 元信息：2026-09-14（窗口内合并 [#128](https://github.com/temporal-community/temporal-agent-harness/pull/128)）；已发布开源（实验性；近期有 [0.3.0](https://github.com/temporal-community/temporal-agent-harness/releases/tag/0.3.0) 等 tag，本窗为显著能力补丁）；主题标签：Agent harness / 人机审批 / MCP 工具治理 / 可观测性 / 持久暂停续跑；分级：A
+   - 核心问题：把 Agent 建成 Temporal workflow 后，原生工具可走审批与 `tool_start`/`tool_end` 事件，但 OpenAI Agents SDK 对 MCP 走 `MCPServer.call_tool` 直调，绕过 harness 的 `run_tool`，导致 MCP（常接邮件/日历/文档服务）既不可审批也不可观测。
+   - 机制/设计：新增 `as_harness_mcp_server(server, runner, inherently_safe=...)`：在真正 `call_tool` 前经 `_apply_approval_policy` 闸门，拒绝则返回 `is_error` 且不触达下游；通过后发 `ToolStart`/`ToolEnd`/`ToolError`，并用 `tool_meta_resolver` 对齐模型侧 `tool_requested` 的 call id。`stateless_mcp_server` / Nexus gateway 工厂强制传入 `runner`；工作流准备阶段用 `is_harness_mcp_server` 静态断言未包装则直接 `ValueError`。策略层仍是 safe-by-default：分层规则、inherently-safe 自动放行、per-tool allow-list、会话级 `/approvals` 覆盖等； gated 调用在 workflow 内持久暂停直至人批。
+   - 证据：README「Human-in-the-loop, solved」与 ToolApprovalPolicy 示例；PR [#128](https://github.com/temporal-community/temporal-agent-harness/pull/128)（2026-09-14 合并）及 `temporal_agent_harness/ai_sdks/openai_agents_harness.py` 中 wrapper；单测 `tests/ai_sdks/openai_agents/test_harness_mcp_server.py`、`tests/harness/test_mcp_tool_governance.py`（覆盖 gated 等待、deny 不达服务器、skip 仍发生命周期事件、call id 关联）；`examples/react_agent/README.md` 由「MCP bypasses harness」改为「MCP tools are under harness governance too」。
+   - 局限：官方标注 Experimental，API 会变；`inherently_safe` 目前是整 server 粒度，不能细到单个 MCP tool；主要绑定 OpenAI Agents SDK + Temporal，办公垂直工具需自接；体量与生态仍早于成熟框架。
+   - 对办公 Agent 或 Agent 基础设施的意义：直接堵住「接上 MCP 办公连接器后审批与审计被旁路」的漏洞——发信、改日历、写库表一类副作用工具必须与本地 function tool 走同一闸门与事件流，否则 harness 的 HITL/审计形同虚设。
 
 ## 三、博客 / 工程文档
 
