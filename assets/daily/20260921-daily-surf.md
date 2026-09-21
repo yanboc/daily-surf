@@ -1,0 +1,58 @@
+# 每日资讯 · 20260921
+
+## 一、论文（arxiv）
+
+1. **[AutoViewMem: Self-Configuring Orthogonal Views for Conversational Long-Term Memory](https://arxiv.org/abs/2609.21940)**
+   - 元信息：2026-09-21（arxiv 公告日；submitted 2026-09-18）；预印本；主题标签：Agent Memory / 写时多视图解缠 / DPP 选视图 / provenance 结构化抽取 / 离线图巩固；分级：S
+   - 核心问题：长对话记忆里偏好、事件、约束、时序更新常混在同一表示里，粒度调优仍无法消除语义干扰，导致固定 top-K 检索既漏证又带噪；需要把「语义投影如何组织」放到索引之前，而不是再堆查询侧路由。
+   - 机制/设计：对每个用户维护活跃视图集 \(\mathcal{V}_u^*\) 与带 view 标签、时间戳、provenance 的记忆库 \(\mathcal{M}_u\)。在线 Divergence–Convergence：每 \(N{=}50\) chunk 由 LLM 提出 10 个候选视图（名/槽位/抽取模板）→ 用与索引同源的稠密编码器 + DPP（\(K{=}10\)，均匀质量）选低重叠视图 → 对每个对话块按活跃视图条件写结构化事实（同一证据可多视图投影）。查询端仍是单索引标准 top-K，按 provenance 去重后入上下文。离线：哈希去重 → \(\cos\geq 0.9\) 相似图聚类 → LLM 按 Containment/Complementarity/Independence 裁决合并，冲突或不同时间版本默认不并，保留合并 provenance。
+   - 证据：LoCoMo（1,540 题；J/F1/B1，统一 Qwen3-8B judge）与 PersonaMem-32k（589 多选题 Acc.）；骨干 Qwen3-8B/14B，嵌入 e5-base-v2，对照 A-mem/Mem0/MemGAS/MemoryBank 与 Full-History。Qwen3-8B：LoCoMo Overall J/F1/B1 = 0.837/0.456/0.339（优于次强外存 MemGAS J=0.783 与 Full History J=0.821）；PersonaMem Acc. 62.48（vs MemoryBank 60.10）。Qwen3-14B：LoCoMo J/F1/B1 = 0.853/0.486/0.339；PersonaMem Acc. 69.10（>5pp 于最强基线 A-mem 63.33，且远高于 Full History 55.18），增益集中在 Gen/P-Rec/Sugg/R-Rsn。消融（固定 \(K_0{=}30\)）：Full J=0.837、no-pos 5.14%；去多视图 0.774；随机选视图 0.777/no-pos 7.03%；去图巩固 0.801/no-pos 9.83%。检索诊断：小 K 预算下相对 Mem0 更稳。
+   - 局限：结论明确——视图发现/抽取/巩固依赖底层 LLM；视图收敛按缓冲周期而非全在线，分布剧变时适配慢；离线合并可能抹掉细微时序差（虽有 provenance 可审计）；评测限于 LoCoMo/PersonaMem，缺多方、多语、安全关键场景。失败形态隐含：无多视图时 Judge 跌最多；去巩固时 no-pos 升至 9.83%，紧预算下冗余淹没金证。
+   - 对办公 Agent 或 Agent 基础设施的意义：给「会议纪要/邮件线程/跨周偏好」定写时配方——先按用户自适应视图拆成带 provenance 的结构化卡再入向量库，查询保持简单 top-K；办公落地应把权限与审计挂在 provenance，并用离线巩固控库膨胀，而不是靠更复杂的查询路由器掩盖混杂表示。
+
+2. **[MACE: Memory-Agent Co-Evolution with Adaptive Memory Graphs for Multi-Agent Systems](https://arxiv.org/abs/2609.21533)**
+   - 元信息：2026-09-21（arxiv 公告日；submitted 2026-09-18）；预印本；主题标签：多 Agent 协同 / Agent Memory / MemGoG 功能子图 / 角色补丁投递 / 执行反馈共进化；分级：S
+   - 核心问题：MAS 协作轨迹里，复用一步动作必须保住前置条件与下游产出；扁平条目或统一大图检索会拆散功能依赖，且「选哪些单元」与「用指南还是清单呈现」的配对效果会随格式翻转——需要记忆组织与 Agent 用记方式一起随执行反馈共进化。
+   - 机制/设计：MemGoG 把功能记忆单元建成子图 \(g_k=(V_k,E_k,\tau_k,f_k,\iota_k,o_k,U_t,p_k)\)（episode/mechanism/routine/role projection/source/conflict 等），外层以 support/conflict/repair 等关系连成图的图。MACE Loop：Need-aware Composer 按相关性、历史效用、支持−冲突/成本/风险打分 \(S_t\)，在预算 \(B_t\) 下组成工作图 \(\mathcal{W}_t\)；Adaptive Agent-Memory Coupler 用 \(\kappa_t\) 做单元–角色匹配，渲染五模式补丁（案例/成败机制/协作例程/约束/修复）为指令或清单并受 token 帽；Feedback Co-Evolver 记录所选单元、呈现配置、Agent 输出与任务结果，回写单元效用与关系，供后续检索与呈现配对。
+   - 证据：八基准共 4,728 查询——MMLU（val 前 153）、MMLU-Pro/TabFact（seed-42 各 500）、GSM8K/HumanEval/AQuA-RAT/TAT-QA/LCB v6 全测；指标为解析 Acc. / EM / pass@1。MACE Avg. 81.11%（相对 Direct 71.53% +13.40%），全面高于 SAGE 78.97%、MAD 77.78% 等十个基线；相对 SAGE：MMLU-Pro 76.60→78.80、HumanEval 90.85→93.29、LCB v6 42.86→49.14、TAT-QA 64.52→66.99。消融：去 Coupler −5.88pp、换掉 MemGoG −5.20pp 最大；Composer/Co-Evolver 亦稳定贡献。效率：MACE 约 1.36 s/query、总壁钟 106.78 min，优于 SAGE 2.41 s 且 Acc. 更高。鲁棒：换低成本/本地端点 80.04/79.28仍高于 Direct/SAGE；严峻网络扰动 76.92；25% 记忆单元预算均分五基准仍 81.76；30% 噪声候选时 70.30 vs SAGE 66.95。先导实验：功能单元保留约 83% 内部依赖（对照非功能组 68%）；外连使跨经验联合检索完备率 52%→69%。
+   - 局限：正文无独立 Limitations；G-MAS（GPTSwarm/GraphSearch/R-GFM）为附件导入分、配置与原始预测不可复核，且 MMLU 采样口径与本地 first-153 不一致，仅作定位。主表为 single-run；严峻网络与高噪声下分数下探，依赖 retry/fail-open——记忆服务失败时可能无补丁硬答。失败条件：Coupler 或 MemGoG 缺失时平均掉点最大，说明「有图无角色投递」或「无功能子图」都会伤多 Agent 复用。
+   - 对办公 Agent 或 Agent 基础设施的意义：把「调研→制表→审校」流水线的可复用手续写成带 support/conflict/repair 的功能子图，并按角色投递清单/约束补丁，再用成败回写效用；生产上应把门控写操作与记忆预算一起编进 Composer，避免共享长上下文却拆散审批前置条件。
+
+3. **[An Interpretable Memory Decision Controller for LLM Agents Based on Three-Signal Complementarity: Decoupling Confidence and Consistency](https://arxiv.org/abs/2609.22043)**
+   - 元信息：2026-09-21（arxiv 公告日；submitted 2026-09-18）；预印本；主题标签：Agent Memory / Context Engineering / 检索后信任闸 / 三信号正交融合 / 显式弃权；分级：A
+   - 核心问题：外存检索只回答「谁最相关」，不回答「该不该信」；冲突记忆下标准 RAG 会把错误条目无条件注入上下文并放大幻觉（TruthfulQA 上 RAG 53.0% vs 无记忆 23.0%）。需要在检索与生成之间插入可审计的信任决策，而不是等生成后再 Self-RAG 式补救。
+   - 机制/设计：零可训参 Memory Decision Layer（MDL）。三信号：相关性 \(M=\max_j\cos(e_q,e_{m_j})\)（all-MiniLM-L6-v2）；可靠性 \(R=\mathrm{clip}(\bar s_{\mathrm{rel}}(1-\phi)^2)\)（相关记忆两两相似 × 立场冲突率 \(\phi\) 的平方补，冲突靠否定/极性/反义词典）；任务风险 \(A\)（TruthfulQA 分级或健康/法律/金融等关键词，顶档 \(A\geq 0.70\)）并做风险反转 \(s_A^{\mathrm{inv}}=1-A\)。经 QR 正交子空间（维 5+5+6）与 \(g_A\) 调制融成 \(\mathbf{v}_{\mathrm{meta}}\)，解耦置信度范数 \(C\) 与方向一致性 \(\alpha\)，门控 \(C_{\mathrm{final}}=C\cdot(0.3+0.7\alpha)\)，阈值映射四级动作 Active/Supp/Silent/Opt-Out（Active/Supp 注入记忆，Silent/Opt-Out 不注入；Opt-Out 拒答）。阈值在每数据集 80 题校准集上网格搜索。
+   - 证据：TruthfulQA / HaluEval；构造「正确+常见误解」冲突记忆。gemma-4-E4B-it：RAG 幻觉 53.0%→MDL 23.3%（−29.7pp，\(p{=}0.014\)）；高风险（\(A{=}0.85\)）RAG 63.0%→MDL 0.0%（风险反转触发弃权）。deepseek-v4-flash 跨集：TruthfulQA/HaluEval 高风险幻觉 0.000/0.013（vs RAG 0.107/0.027）。同骨干对照：prompt CRAG 因 400/400 判 Ambiguous 退化为谨慎 RAG；Self-RAG 总体幻觉 0.5% 但拒答 83.3%、约 2.1 次 LLM 调用/题；MDL 高风险 0.0%、单次几何决策约 0.14 ms。信号消融：单信号决策 Acc. 仅 ~0.581；R+A 62.7%、三信号 61.2%；去风险反转在高风险档崩盘（文称 −17.8pp）。案例：汽油手机点火题上 Opt-Out 答 “I don’t know”，而 Active 路径仍可幻觉。
+   - 局限：Limitations——高风险且高相关（\(A,M\geq 0.70\)）时 \(C\) 可能被相关性抬高，117 条医疗域决策 Acc. 仅 55.6%；Active 动作下仍有 8.0% 残余幻觉，说明闸门不能替代记忆清洗。风险 \(A\) 与冲突 \(\phi\) 偏启发式/关键词；评测为冲突注入的问答基准，非真实办公多工具轨迹。失败条件：校准阈值失配、词典漏检立场冲突、或 Active 误放行时，仍会把毒记忆写入上下文。
+   - 对办公 Agent 或 Agent 基础设施的意义：给「检索→写入上下文」加一等公民信任闸——医疗/法务/财务类查询应把风险反转与 Opt-Out 接到 HITL，而不是相关即注入；生产上可把 \(C/\alpha\) 写入审计日志，并把 Active 残余失败回流为记忆清洗工单，避免只靠生成后反思。
+
+## 二、GitHub 仓库
+
+1. **[genspark-ai/genoffice](https://github.com/genspark-ai/genoffice)**
+   - 元信息：2026-09-21（本窗合并 [#550](https://github.com/genspark-ai/genoffice/pull/550)/[#574](https://github.com/genspark-ai/genoffice/pull/574) 等；基线仍为 [v0.10.639](https://github.com/genspark-ai/genoffice/releases/tag/v0.10.639)）；已发布开源（Apache-2.0）；主题标签：办公 Agent / Word·Excel·PPT·PDF / CLI·MCP / 可审阅修订与公式 / 工具调用预算；分级：S
+   - 核心问题：编码 Agent 若只能吐 Markdown/HTML 近似稿，或用脆弱脚本改 OOXML，无法在本机产出可进 Word/Excel/PowerPoint 的真文件，也无法让人按修订/公式核验；需要把「读→改→审计→渲染」做成与编辑器同源的本地工具面，并对流式工具调用与 IPC 输入做硬边界。
+   - 机制/设计：桌面套件本地打开/保存原生 `.docx`/`.xlsx`/`.pptx`（未改字节保留），AI 改动以修订轨/可回滚快照/批量 undo 落地；表格走自研 Rust xlsx 引擎与活公式。Agent 面：`genoffice` CLI 与 bundled skill 走同一引擎；`genoffice mcp` 把命令登记为一组 MCP 工具（`docs_*`/`sheet_*`/`slides_*`/`deck_start→deck_page→deck_build` 等），可选应用内 HTTP 在可见 Word 页签边写边看。路径策略：`GENOFFICE_ALLOWED_ROOTS` 约束读写树；命令审计写入 `~/.genoffice/cli-audit.jsonl`。本窗加固：项目聊天 IPC 校验 `role`/`text≤200k`/`tools≤50`/`attachments≤20`；流式解析对 Anthropic/OpenAI 兼容协议加 `MAX_STREAM_TOOL_CALLS=100`，防网关刷空 `tool_use` 撑爆列表。
+   - 证据：README「Command line and agent skill / MCP server」；[`packages/cli/README.md`](https://github.com/genspark-ai/genoffice/blob/main/packages/cli/README.md)（registry 单表分发、原子 apply、`GENOFFICE_ALLOWED_ROOTS`、cli-audit）；实现线索 [`packages/cli/src/mcp/tools.ts`](https://github.com/genspark-ai/genoffice/blob/main/packages/cli/src/mcp/tools.ts)；PR [#550](https://github.com/genspark-ai/genoffice/pull/550)、[#551](https://github.com/genspark-ai/genoffice/pull/551)、[#552](https://github.com/genspark-ai/genoffice/pull/552)（docs/sheets/slides IPC）、[#574](https://github.com/genspark-ai/genoffice/pull/574)（tool call 计数帽，合并提交 [f629180](https://github.com/genspark-ai/genoffice/commit/f629180)）。
+   - 局限：云侧 `search`/`image`/`media` 仍出站到配置的提供商；无邮件/日历/Teams 连接器；PDF/复杂版式依赖本机渲染与 OCR；「world's first」属营销口径，需以兼容性与安全实测为准；最新正式 tag 仍在 09-17，本窗多为防护向补丁。
+   - 对办公 Agent 或 Agent 基础设施的意义：给出「文档/表格/幻灯片」本地执行层配方——Agent 负责规划，CLI/MCP 负责可检查的写文件与布局审计；生产上应默认设允许根目录、读审计日志，并把每轮工具调用数与 IPC 载荷做成硬帽，避免编辑器 Agent 被恶意流拖垮。
+
+2. **[decionis/agent-safe-pipeline](https://github.com/decionis/agent-safe-pipeline)**
+   - 元信息：2026-09-19～2026-09-20（[v0.3.0](https://github.com/decionis/agent-safe-pipeline/releases/tag/v0.3.0)、[v0.3.2](https://github.com/decionis/agent-safe-pipeline/releases/tag/v0.3.2)）；已发布开源（Apache-2.0 边界 + 托管权威）；主题标签：执行权威网关 / 人机审批 / 审计 dossier / 透明拦截 / Compromised Principal；分级：S
+   - 核心问题：办公 Agent 往往持有合法身份与未过期凭证，却仍可发出无人授权的发信、退款、删客户等副作用；仅靠身份/scope 无法回答「这一次、这些参数、这个目标」是否被授权，需要把执行权威绑到精确 action 上，而不是绑到提出者身份。
+   - 机制/设计：AgentSafe 作为反向代理/拦截器：对 `POST|PUT|PATCH|DELETE` 捕获 `agent-safe.intent/1`（canonical JSON + SHA-256），问 Decionis 得 `ALLOW|BLOCK|ESCALATE`；`ALLOW` 先 claim 单次 grant，再按已绑定字节转发一次；`ESCALATE` 经 Presence 人证后 resume；失败默认 fail-closed。Shadow 先观察再 enforce。v0.3.x：Verifying Provider（上游签 effect receipt 并与授权比对）、Compromised Principal 基础设施 demo/向量；v0.3.2 起透明拦截可对点名主机 **Govern**（旁路 TLS 由运营方 CA 终止，同 hop 跑网关生命周期），并加 `agentsafe test --hosted`。边界与策略平面分离见 `OPEN-CORE.md`：`SafeExecutor` 只依赖可替换的 `DecisionAuthority`/`AuthorizationVerifier`。
+   - 证据：README 状态表与 `agentsafe test` 对照列；[`docs/compromised-principal-test.md`](https://github.com/decionis/agent-safe-pipeline/blob/master/docs/compromised-principal-test.md)；[`docs/gateway/http-interception.md`](https://github.com/decionis/agent-safe-pipeline/blob/master/docs/gateway/http-interception.md)（intent 字段、claim-before-forward、digest 复核）；[`docs/gateway/transparent-interception.md`](https://github.com/decionis/agent-safe-pipeline/blob/master/docs/gateway/transparent-interception.md)（Observe vs Govern 代价）；[`OPEN-CORE.md`](https://github.com/decionis/agent-safe-pipeline/blob/master/OPEN-CORE.md)；Release [v0.3.0](https://github.com/decionis/agent-safe-pipeline/releases/tag/v0.3.0)（#203–#207）、[v0.3.2](https://github.com/decionis/agent-safe-pipeline/releases/tag/v0.3.2)（#224/#226/#227）。
+   - 局限：生产策略引擎与 Presence 不在本仓，需托管 Decionis 或自实现接口；透明 Govern 要求工作负载信任运营方 CA，且私钥泄露可冒充被治理主机；尚无 HTTP/2 治理流、WebSocket、不定结果对账路由；默认只覆盖 80/443。
+   - 对办公 Agent 或 Agent 基础设施的意义：把「发邮件/改表/调内部 API」从模型自觉审批升级为可测的执行权威层——同一合法身份下未授权意图必须 BLOCK/ESCALATE；落地可先 `agentsafe test`/shadow，再对支付/CRM/邮件出口做 addressed 或 transparent 闸门，并把 Decision Dossier 送审计。
+
+3. **[openai/openai-agents-python](https://github.com/openai/openai-agents-python)**
+   - 元信息：2026-09-20～2026-09-21（本窗合并 [#5103](https://github.com/openai/openai-agents-python/pull/5103)、[#5117](https://github.com/openai/openai-agents-python/pull/5117)、[#5105](https://github.com/openai/openai-agents-python/pull/5105) 等；基线仍为 [v0.22.3](https://github.com/openai/openai-agents-python/releases/tag/v0.22.3)）；已发布开源；主题标签：Agent harness / 沙箱 host grant / 自动 compaction 保真 / 服务端持有审批态；分级：S；重复出现，值得关注
+   - 核心问题：长办公任务依赖沙箱改文件与自动 compaction 续跑时，只读 host bind 若与需 `SYS_ADMIN` 的特权存储叠用可能被 remount 写穿；自动压缩若上传/替换「未进入本轮模型交换」的过滤历史，会静默丢掉审批外上下文或把错误摘要当权威；客户端回传的 `RunState` 还可被篡改审批与挂起工具调用。
+   - 机制/设计：本窗三块加固。(1) Docker sandbox：create/resume 在解析环境前拒绝「只读 host grant + 需容器挂载特权的 storage」组合，即便已确认凭据暴露也不放行。(2) 自动 compaction：对照完整存储历史与本轮实际 model input/response；凡有历史落在交换之外则跳过压缩并保留原文（覆盖过滤输入、handoff、resume、加密会话、后端读限）；显式手动 compaction 行为不变。(3) HITL 文档/示例：序列化 run state 留在服务端，用所有者授权的一次性 decision batch 恢复，反序列化路径标明信任边界。另有 host grant 路径规范化、只读字典 manifest 拒 host source、工具失败详情默认脱敏等。
+   - 证据：PR [#5117](https://github.com/openai/openai-agents-python/pull/5117)（合并 [c641e39](https://github.com/openai/openai-agents-python/commit/c641e39)）；[#5103](https://github.com/openai/openai-agents-python/pull/5103)（合并 [27625dd](https://github.com/openai/openai-agents-python/commit/27625dd)）；[#5105](https://github.com/openai/openai-agents-python/pull/5105)（server-owned approval 示例，[32c61e7](https://github.com/openai/openai-agents-python/commit/32c61e7)）；相关 [#5099](https://github.com/openai/openai-agents-python/pull/5099)/[#5100](https://github.com/openai/openai-agents-python/pull/5100)、[#5107](https://github.com/openai/openai-agents-python/pull/5107)（host shell 需交互审批文档）；官方 [Human-in-the-loop](https://openai.github.io/openai-agents-python/human_in_the_loop/)。
+   - 局限：尚未切新 release tag，生产需 pin commit 或等下一版；compaction 跳过会抬上下文成本；server-owned 审批示例用进程内存储，生产须自备认证、共享存储与保留策略；无内置邮件/日历/Office 连接器语义。
+   - 对办公 Agent 或 Agent 基础设施的意义：补上「沙箱权限组合」与「压缩不得抹掉未参与本轮的历史」两条生产红线，并把 HITL 状态定为服务端权威——适合改本地公文包/长会话办公流水线；与上条 AgentSafe 叠加时，模型侧审批与网关侧执行权威应分层，而不是互相替代。
+
+## 三、博客 / 工程文档
+
+本板块今日无新增
+
